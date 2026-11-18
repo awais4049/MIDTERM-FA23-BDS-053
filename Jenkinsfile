@@ -5,6 +5,7 @@ pipeline {
     environment {
         IMAGE = 'midterm-app'
         CONTAINER = 'midterm-app'
+        HUB_REPO = 'midterm-fa23-bds-053'
     }
     stages {
         stage('Checkout') {
@@ -41,6 +42,21 @@ pipeline {
                     test -s reports/new_metrics.json
                     cat reports/new_metrics.json
                 '''
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                        sh '''
+                            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+                            docker tag ${IMAGE}:latest ${DH_USER}/${HUB_REPO}:latest
+                            docker tag ${IMAGE}:latest ${DH_USER}/${HUB_REPO}:${BUILD_NUMBER}
+                            docker push ${DH_USER}/${HUB_REPO}:latest
+                            docker push ${DH_USER}/${HUB_REPO}:${BUILD_NUMBER}
+                        '''
+                    }
+                }
             }
         }
     }
